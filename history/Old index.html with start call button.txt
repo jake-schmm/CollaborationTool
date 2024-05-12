@@ -42,21 +42,21 @@
     #main {
         position: relative;
         width: 100%; /* Full width of the container */
-        min-height: 100vh; /* Full height of the viewport */
-        overflow: auto; /* Ensures no overflow from the pseudo-element */
+        height: 100vh; /* Full height of the viewport */
+        overflow: hidden; /* Ensures no overflow from the pseudo-element */
     }
 
     #main::before {
-        content: ""; /* Necessary for pseudo-elements */
-        position: absolute;
-        left: 0;
-        width: 100%; /* Full width */
-        height: 100vh; /* The height of the container */
-        /*background: url('https://mdbcdn.b-cdn.net/img/new/fluid/city/018.jpg') no-repeat center center; */
-        /*background: url('https://mdbootstrap.com/img/Photos/Others/images/76.jpg') no-repeat center center; */
-        background: url('imgs/mqi1az5h.png') no-repeat center center;
-        background-size: cover; /* Cover the area of the pseudo-element */
-        z-index: -1; /* Places the background below the content */
+    content: ""; /* Necessary for pseudo-elements */
+    position: absolute;
+    left: 0;
+    width: 100%; /* Full width */
+    height: 100vh; /* Half the height of the container */
+    /*background: url('https://mdbcdn.b-cdn.net/img/new/fluid/city/018.jpg') no-repeat center center; */
+    /*background: url('https://mdbootstrap.com/img/Photos/Others/images/76.jpg') no-repeat center center; */
+    background: url('imgs/mqi1az5h.png') no-repeat center center;
+    background-size: cover; /* Cover the area of the pseudo-element */
+    z-index: -1; /* Places the background below the content */
     }
 
     #localVideo, #remoteVideo {
@@ -88,6 +88,7 @@
             <button class="btn btn-primary" id="joinRoom">Join Room</button>
             <div>Users in room: <span id="userCount">0</span></div>
             <br/>
+            <button class="btn btn-primary" id="startCall">Start Call</button>
         </div>
     </div>
     <div>
@@ -121,8 +122,10 @@ function showToastNotification(message, duration = 3000) {
         document.body.removeChild(toast);
     }, duration);
 }
-
-// Mute and unmute
+function unmuteVideo() {
+    var video = document.getElementById('remoteVideo');
+    video.muted = false;
+}
 document.getElementById('muteButton').addEventListener('click', function() {
   var video = document.getElementById('remoteVideo');
   var button = this;
@@ -158,6 +161,7 @@ function matchVideoHeight() {
 
 let peerConnection;
 let localStream = null;
+let pendingRemoteStream = null; // To hold the incoming stream until 'Start Call' is clicked
 
 window.onload = function() {
     initializePeerConnection();
@@ -176,6 +180,27 @@ navigator.mediaDevices.getUserMedia({ video: true, audio: true })
     .catch(error => {
         console.error('Error accessing media devices.', error);
     });
+
+    // Handle track event on peerConnection to catch remote stream and assign it to remoteVideo element
+    function handleTrackEvent(event) {
+        console.log("Track event triggered");
+        if (event.streams && event.streams[0]) {
+        pendingRemoteStream = event.streams[0];
+        console.log("Remote stream received and held");
+    } else {
+        let inboundStream = new MediaStream(event.track);
+        pendingRemoteStream = inboundStream;
+        console.log("Inbound stream created and held");
+    }
+    }
+
+    function handleICECandidateEvent(event) {
+    if (event.candidate) {
+        console.log("Sending ICE candidate");
+        const room = document.getElementById('roomName').value;
+        socket.emit('candidate', event.candidate, room);
+    }
+}
 
     let isNegotiating = false; // Flag to manage negotiation state
 
@@ -209,30 +234,34 @@ navigator.mediaDevices.getUserMedia({ video: true, audio: true })
         const room = document.getElementById('roomName').value; // Get room name from input field
         socket.emit('join', room); // Emit join event to server with room name
         showToastNotification("Joined " + room + " successfully.");
+        
         initializePeerConnection(); // Reset and initialize the peer connection
+
+        document.getElementById('startCall').addEventListener('click', function() {
+        const room = document.getElementById('roomName').value.trim(); // Always trim input values
+            console.log("Start call clicked, room:", room, "Negotiating:", isNegotiating);
+
+            if (!isNegotiating && room) {
+                isNegotiating = true;
+                if (pendingRemoteStream) {
+                    document.getElementById('remoteVideo').srcObject = pendingRemoteStream;
+                    console.log("Remote video stream set");
+                }
+                peerConnection.createOffer().then(offer => {
+                    console.log("Offer created:", offer);
+                    return peerConnection.setLocalDescription(offer);
+                }).then(() => {
+                    console.log("Local Description Set, sending offer");
+                    socket.emit('offer', peerConnection.localDescription.toJSON(), room); // Ensure to use toJSON if necessary
+                }).catch(console.error)
+                .finally(() => { // Always reset isNegotiating in a finally block to ensure it gets reset
+                    isNegotiating = false;
+                });
+            } else {
+                console.log("Negotiation skipped or no room defined");
+            }
+        });
     });
-
-  
-     // Handle track event on peerConnection to catch remote stream and assign it to remoteVideo element
-     function handleTrackEvent(event) {
-        console.log("Track event triggered");
-        if (event.streams && event.streams[0]) {
-            remoteVideo.srcObject = event.streams[0];
-            console.log("Remote stream added");
-        } else {
-            let inboundStream = new MediaStream(event.track);
-            remoteVideo.srcObject = inboundStream;
-            console.log("Inbound stream");
-        }
-    }
-
-    function handleICECandidateEvent(event) {
-        if (event.candidate) {
-            console.log("Sending ICE candidate");
-            const room = document.getElementById('roomName').value;
-            socket.emit('candidate', event.candidate, room);
-        }
-    }
 
     function handleNegotiationNeeded() {
         const room = document.getElementById('roomName').value;
@@ -262,7 +291,7 @@ navigator.mediaDevices.getUserMedia({ video: true, audio: true })
         // Notify the server that the client is about to disconnect
         socket.emit('pre-disconnect');
         // Optional: You can try to delay the closing to ensure the message is sent:
-        // event.returnValue = "Are you sure you want to leave?"; // This text may not be shown by most modern browsers.
+        event.returnValue = "Are you sure you want to leave?"; // This text may not be shown by most modern browsers.
     });
 
     // Setup signaling (process of exchanging information needed to establish a peer connection
