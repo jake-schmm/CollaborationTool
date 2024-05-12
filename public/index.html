@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Video Chat</title>
+<!-- Font Awesome -->
+<link
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+  rel="stylesheet"
+/>
+<!-- Google Fonts -->
+<link
+  href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+  rel="stylesheet"
+/>
+<!-- MDB -->
+<link
+  href="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/7.2.0/mdb.min.css"
+  rel="stylesheet"
+/>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+    * {
+        box-sizing: border-box;
+    }
+    .box {
+        float: left;
+        width: 46%;
+        padding: 15px;
+        margin-left: 2%;
+        border: 10px solid;
+    }
+    #topInputs {
+        margin-top: 2%;
+        margin-bottom: 2%;
+        text-align: center;
+    }
+    .innerDiv {
+        margin-top: 5%;
+        margin: 0 auto;
+    }
+    #main {
+        position: relative;
+        width: 100%; /* Full width of the container */
+        height: 100vh; /* Full height of the viewport */
+        overflow: hidden; /* Ensures no overflow from the pseudo-element */
+    }
+
+    #main::before {
+    content: ""; /* Necessary for pseudo-elements */
+    position: absolute;
+    left: 0;
+    width: 100%; /* Full width */
+    height: 100vh; /* Half the height of the container */
+    /*background: url('https://mdbcdn.b-cdn.net/img/new/fluid/city/018.jpg') no-repeat center center; */
+    /*background: url('https://mdbootstrap.com/img/Photos/Others/images/76.jpg') no-repeat center center; */
+    background: url('imgs/mqi1az5h.png') no-repeat center center;
+    background-size: cover; /* Cover the area of the pseudo-element */
+    z-index: -1; /* Places the background below the content */
+    }
+
+    #localVideo, #remoteVideo {
+        background-color: white;
+    }
+
+    #roomName {
+        padding: .375rem .75rem;
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.6;
+        color: var(--mdb-surface-color);
+        appearance: none;
+        background-color: var(--mdb-body-bg);
+        background-clip: padding-box;
+        border: var(--mdb-border-width) solid var(--mdb-border-color);
+        border-radius: var(--mdb-border-radius);
+    }
+
+</style>
+</head>
+<body>
+    <div id="log"></div>
+    <div class="bg-image" id="main">
+    <div id="topInputs">
+        <h1 class="mb-3">Video Chat</h1>
+        <div class="innerDiv">
+            <input type="text" id="roomName" placeholder="Enter room name">
+            <button class="btn btn-primary" id="joinRoom">Join Room</button>
+            <div>Users in room: <span id="userCount">0</span></div>
+            <br/>
+            <button class="btn btn-primary" id="startCall">Start Call</button>
+        </div>
+    </div>
+    <div>
+        <video class="box" id="localVideo" playsinline autoplay muted></video>
+        <video class="box"id="remoteVideo" playsinline autoplay muted></video>
+        <div class="box" style="border: 0">
+            <button id="muteButton" class="btn btn-success">Unmute</button>
+        </div>
+        
+    </div>
+    </div>
+<script>
+function logMessage(message) {
+    const log = document.getElementById('log');
+    log.innerHTML += message + '<br/>';
+}
+function showToastNotification(message, duration = 3000) {
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.position = 'fixed';
+    toast.style.top = '25%';
+    toast.style.left = '50%';
+    toast.style.transform = 'translateX(-50%)';
+    toast.style.backgroundColor = 'rgba(0,0,0,0.7)';
+    toast.style.color = 'white';
+    toast.style.padding = '10px';
+    toast.style.borderRadius = '5px';
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        document.body.removeChild(toast);
+    }, duration);
+}
+function unmuteVideo() {
+    var video = document.getElementById('remoteVideo');
+    video.muted = false;
+}
+document.getElementById('muteButton').addEventListener('click', function() {
+  var video = document.getElementById('remoteVideo');
+  var button = this;
+
+  if (video.muted) {
+    video.muted = false;
+    button.textContent = 'Mute';
+    button.classList.remove('btn-success');
+    button.classList.add('btn-danger');
+  } else {
+    video.muted = true;
+    button.textContent = 'Unmute';
+    button.classList.remove('btn-danger');
+    button.classList.add('btn-success')
+  }
+});
+
+const socket = io(); // connect to socket.io server
+const localVideo = document.getElementById('localVideo');
+const remoteVideo = document.getElementById('remoteVideo');
+
+// Event listener to call matchVideoHeight when video1 starts playing
+localVideo.addEventListener('play', matchVideoHeight);
+
+// Event listener to call matchVideoHeight when video1 changes size (e.g., due to resizing the window)
+window.addEventListener('resize', matchVideoHeight);
+
+// Function to set the height of video2 to match video1
+function matchVideoHeight() {
+    const video1Height = localVideo.clientHeight; // Get height of video1
+    remoteVideo.style.height = `${video1Height}px`; // Set height of video2
+}
+
+
+
+const peerConnection = new RTCPeerConnection();
+
+navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    .then(stream => {
+        localVideo.srcObject = stream; // display the local video stream on the page
+        // Add video track and audio track to peer connection
+        stream.getTracks().forEach(track => {
+            console.log("Adding track: " + track.label);
+            peerConnection.addTrack(track, stream);
+        });
+        
+        
+    })
+    .catch(error => {
+        console.error('Error accessing media devices.', error);
+    });
+
+    // Listen to the track event on peerConnection to catch remote stream and assign it to remoteVideo element
+    peerConnection.ontrack = (event) => {
+        console.log("Track event triggered");
+        if (event.streams && event.streams[0]) {
+            remoteVideo.srcObject = event.streams[0];
+            console.log("Remote stream added");
+        } else {
+            // Create a new MediaStream if one isn't already associated with the track
+            let inboundStream = new MediaStream(event.track);
+            remoteVideo.srcObject = inboundStream;
+        }
+    };
+
+    
+    let isNegotiating = false; // Flag to manage negotiation state
+
+    document.getElementById('joinRoom').addEventListener('click', function() {
+        const room = document.getElementById('roomName').value; // Get room name from input field
+        socket.emit('join', room); // Emit join event to server with room name
+        showToastNotification("Joined " + room + " successfully.");
+        // Now the room variable is defined and can be used for sending messages
+        peerConnection.onicecandidate = event => {
+            if (event.candidate) {
+                socket.emit('candidate', event.candidate, room); // Include room when sending ICE candidates
+            }
+        };
+
+        document.getElementById('startCall').addEventListener('click', function() {
+            if (!isNegotiating) { 
+                isNegotiating = true;
+                console.log("Creating offer");
+                peerConnection.createOffer().then(offer => {
+                    return peerConnection.setLocalDescription(offer);
+                }).then(() => {
+                    socket.emit('offer', peerConnection.localDescription, room); // Send offer with room info
+                }).catch(console.error);
+            }
+        });
+        
+    });
+
+    peerConnection.onsignalingstatechange = (event) => {
+        if (peerConnection.signalingState === "stable") {
+            isNegotiating = false; // Reset negotiation flag when stable
+        }
+    };
+
+    window.addEventListener("beforeunload", function(event) {
+        // Notify the server that the client is about to disconnect
+        socket.emit('pre-disconnect');
+        // Optional: You can try to delay the closing to ensure the message is sent:
+        event.returnValue = "Are you sure you want to leave?"; // This text may not be shown by most modern browsers.
+    });
+    
+    // Setup signaling (process of exchanging information needed to establish a peer connection
+    // i.e. session offers and answers and ICE candidates to handle NAT traversal
+    socket.on('offer', (offer) => {
+        console.log("Offer received ... creating answer");
+        const room = document.getElementById('roomName').value; // This should be consistent with the room joined
+        peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+        peerConnection.createAnswer()
+        .then(answer => {
+            peerConnection.setLocalDescription(answer);
+            socket.emit('answer', answer, room); // Send the answer back to the offerer through the same room
+        });
+    });
+
+    
+    socket.on('answer', (answer) => {
+        console.log("Answer received, setting remote description");
+        peerConnection.setRemoteDescription(new RTCSessionDescription(answer))
+            .then(() => {
+                console.log("Remote description set successfully with answer");
+            })
+            .catch(e => {
+                console.error("Failed to set remote description with answer", e);
+            });
+    });
+
+    socket.on('candidate', (candidate) => {
+        peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    });
+
+    // Listen for updates on user count
+    socket.on('update user count', (count) => {
+        document.getElementById('userCount').textContent = count;
+    });
+</script>
+
+<!-- MDB -->
+<script
+  type="text/javascript"
+  src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/7.2.0/mdb.umd.min.js"
+></script>
+</body>
+</html>
