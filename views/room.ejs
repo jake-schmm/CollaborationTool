@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Video Chat</title>
+<!-- Font Awesome -->
+<link
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+  rel="stylesheet"
+/>
+<!-- Google Fonts -->
+<link
+  href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+  rel="stylesheet"
+/>
+<!-- MDB -->
+<link
+  href="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/7.2.0/mdb.min.css"
+  rel="stylesheet"
+/>
+<script>
+    var ROOM_ID = "<%= roomId %>"; // get initial roomId from server
+</script>
+<script src="https://unpkg.com/peerjs@1.5.3/dist/peerjs.min.js" defer></script>
+<script src="/socket.io/socket.io.js" defer></script> <!-- Access socket.io from front-end -->
+<script src="script.js" defer></script>
+<style>
+    * {
+        box-sizing: border-box;
+    }
+    .box {
+    width: 100%; /* Ensures the video fills the container */
+    height: auto; /* Maintain aspect ratio */
+    display: block; /* Removes extra space below the video */
+}
+
+.videoBox {
+    width: 46%; /* Width of each video box */
+    padding: 15px; /* Padding around videos */
+    margin: 1%; /* Space between video boxes */
+    box-sizing: border-box; /* Includes padding and border in the width */
+    position: relative; /* For absolute positioning of buttons */
+}
+
+.videoContainer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    align-items: flex-start; /* Align items at the start of the container */
+}
+video {
+    background-color: white;
+    border: 10px solid;
+    padding: 15px;
+}
+.muteButton {
+    margin-top: 1%;
+}
+    #topInputs {
+        margin-top: 2%;
+        margin-bottom: 2%;
+        text-align: center;
+    }
+    .innerDiv {
+        margin-top: 5%;
+        margin: 0 auto;
+    }
+    #main {
+        position: relative;
+        width: 100%; /* Full width of the container */
+        min-height: 100vh; /* Full height of the viewport */
+        overflow: auto; /* Ensures no overflow from the pseudo-element */
+    }
+
+    #main::before {
+        content: ""; /* Necessary for pseudo-elements */
+        position: absolute;
+        left: 0;
+        width: 100%; /* Full width */
+        height: 100vh; /* The height of the container */
+        /*background: url('https://mdbcdn.b-cdn.net/img/new/fluid/city/018.jpg') no-repeat center center; */
+        /*background: url('https://mdbootstrap.com/img/Photos/Others/images/76.jpg') no-repeat center center; */
+        background: url('../imgs/mqi1az5h.png') no-repeat center center;
+        background-size: cover; /* Cover the area of the pseudo-element */
+        z-index: -1; /* Places the background below the content */
+    }
+
+    #localVideo, #remoteVideo, .remoteVideo {
+        background-color: white;
+    }
+
+    #roomName {
+        padding: .375rem .75rem;
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.6;
+        color: var(--mdb-surface-color);
+        appearance: none;
+        background-color: var(--mdb-body-bg);
+        background-clip: padding-box;
+        border: var(--mdb-border-width) solid var(--mdb-border-color);
+        border-radius: var(--mdb-border-radius);
+    }
+
+</style>
+</head>
+<body>
+    <div id="log"></div>
+    <div class="bg-image" id="main">
+        <div id="topInputs">
+            <h1 class="mb-3">Video Chat</h1>
+            <div class="innerDiv">
+                <input type="text" id="roomName" placeholder="Enter room name">
+                <button class="btn btn-primary" id="joinRoom">Join Room</button>
+                <div>Users in room: <span id="userCount">0</span></div>
+                <br/>
+            </div>
+        </div>
+        <div id="videoContainer" style="display: flex; flex-wrap: wrap; justify-content: space-around;">
+            <!-- <div class="videoBox">
+                <video class="box" id="localVideo" playsinline autoplay muted></video>
+            </div>
+             
+            <div class="videoBox">
+                <video id='remoteVideo' class="box remoteVideo" playsinline autoplay muted></video>
+                <button id='muteButton' class="muteButton btn btn-success">Unmute</button>
+            </div> -->
+        </div>
+    </div>
+<script>
+
+
+function logMessage(message) {
+    const log = document.getElementById('log');
+    log.innerHTML += message + '<br/>';
+}
+
+
+// Event listener to call matchVideoHeight when video1 starts playing
+//localVideo.addEventListener('play', matchVideoHeight(remoteVideo, localVideo));
+// localVideo.addEventListener('play', () => {
+//     document.querySelectorAll('.remoteVideo').forEach(video => {
+//         matchVideoHeight(video, localVideo)
+//     });
+// });
+// // Event listener to call matchVideoHeight when video1 changes size (e.g., due to resizing the window)
+// window.addEventListener('resize', () => {
+//     document.querySelectorAll('.remoteVideo').forEach(video => {
+//         matchVideoHeight(video, localVideo)
+//     });
+// });
+
+// Function to set the height of video2 to match video1
+function matchVideoHeight(targetVideo, referenceVideo) {
+    if (referenceVideo.readyState >= 2) {  // Ensures metadata is loaded
+        targetVideo.style.height = `${referenceVideo.clientHeight}px`;
+    } else {
+        referenceVideo.addEventListener('loadedmetadata', () => {
+            targetVideo.style.height = `${referenceVideo.clientHeight}px`;
+        }, { once: true });
+    }
+}
+
+        
+
+        
+    
+</script>
+
+<!-- MDB -->
+<script
+  type="text/javascript"
+  src="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/7.2.0/mdb.umd.min.js"
+></script>
+</body>
+</html>

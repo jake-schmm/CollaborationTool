@@ -1,93 +1,47 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const app = express();
+app.set('view engine', 'ejs');
 const http = require('http').Server(app);
+const io = require('socket.io')(http);
+
+const nsp = io.of('/videoChat') // have a separate namespace for video chat socket
+
+// This will be triggered when it redirects to index.html/randomUUID
+app.get('/index.html', (req, res) => {
+    res.render('room', { roomId: uuidv4()}) // render the 'room.ejs' and pass the page a server-side initial roomId variable that can be accessed client-side
+})
 
 // Serve static files from the 'public' directory
-app.use(express.static('public'));
+app.use(express.static('public')); // this must be placed after routing code
 
-const PORT = process.env.PORT || 3000;
+
+// Server-side logic to handle joining rooms and relaying offers/answers
+nsp.on('connection', function(socket) {
+    socket.on('join-room', (roomId, userId) => {
+        socket.roomId = roomId;
+        socket.userId = userId;
+
+        socket.join(roomId)
+        socket.to(roomId).emit('user-connected', userId); // broadcast to all other users in the room that the new user joined
+        console.log(`User ${userId} joined room ${roomId}`)
+    });
+
+    socket.on('disconnect', () => {
+        if (socket.roomId && socket.userId) {
+            socket.to(socket.roomId).emit('user-disconnected', socket.userId);
+            console.log(`${socket.userId} left room ${socket.roomId}`);
+        }
+    })
+
+    socket.on('leave-room', (roomId, userId) => {
+        socket.leave(roomId);
+        //socket.to(roomId).emit('user-disconnected', userId);
+        console.log(`${userId} left room ${roomId}`);
+    });
+});
+
+const PORT = 3000;
 http.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
-
-const io = require('socket.io')(http);
-
-let users = {};  // Maps UUIDs to socket IDs
-const rooms = {};  // Maps room IDs to arrays of user IDs
-
-// Server-side logic to handle joining rooms and relaying offers/answers
-io.on('connection', function(socket) {
-
-    const userId = generateUserId(); 
-    users[userId] = socket.id;  // Map UUID to socket ID
-    socket.userId = userId;  // Store UUID in socket session for later reference
-    socket.emit('your-id', userId); // need to set up client-side code (socket.on your-id) to retrieve this value client-side
-
-    socket.on('join-room', (roomId, userId) => {
-        if (!rooms[roomId]) {
-            rooms[roomId] = [];
-        }
-        // Check if the user is already in the room
-        if (!rooms[roomId].includes(userId)) {
-            rooms[roomId].push(userId);
-            socket.join(roomId);
-            socket.to(roomId).emit('user-joined', userId, socket.id);  // Notify others in the room
-            console.log("User " + userId + " joined room " + roomId);
-        } else {
-            console.log(`User ${userId} attempted to join room ${roomId} but was already a member.`);
-        }
-    });
-
-    socket.on('leave-room', (roomId, userId) => {
-        // Remove user from room
-        if (rooms[roomId]) {
-            const index = rooms[roomId].indexOf(userId);
-            if (index > -1) {
-                rooms[roomId].splice(index, 1);
-            }
-            socket.leave(roomId);
-            socket.to(roomId).emit('user-left', userId);  // Notify others in the room
-        }
-    });
-
-    socket.on('send-offer', (offer, roomId, targetUserId) => {
-        let targetSocketId = users[targetUserId];  // Retrieve socket ID using UUID
-        if (targetSocketId) {
-            io.to(targetSocketId).emit('receive-offer', socket.userId, offer);
-            console.log(`Offer sent from ${socket.userId} to ${targetUserId}`);
-        } else {
-            console.log(`No active socket for user ${targetUserId}`);
-        }
-    });
-
-    socket.on('send-answer', (answer, roomId, targetUserId) => {
-        let targetSocketId = users[targetUserId];
-        if (targetSocketId) {
-            console.log(`Sending answer to ${targetUserId} at socket ${targetSocketId}`);
-            io.to(targetSocketId).emit('receive-answer', socket.userId, answer);
-        }
-    });
-
-    socket.on('send-ice-candidate', (candidate, roomId, targetUserId) => {
-        let targetSocketId = users[targetUserId];  // Retrieve socket ID using UUID
-        if (targetSocketId) {
-            io.to(targetSocketId).emit('receive-ice-candidate', socket.userId, candidate);
-        }
-    });
-        
-    socket.on('pre-disconnect', () => {
-        socket.disconnect(true);
-    });
-    
-    // When disconnecting, double-check room membership
-    socket.on('disconnect', () => {
-        // Handle cleanup
-    });
-
-});
-
-
-function generateUserId() {
-    return uuidv4();
-}
