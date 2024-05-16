@@ -4,7 +4,8 @@ const videoGrid = document.getElementById('videoContainer')
 // Peer.js - undefined parameter means a unique id is assigned to that Peer 
 // Having a unique id is important because I don't pass in host or key options
 // So that means it will use Peer Cloud Service which shares ids with everyone else using Peer.js without a key or host 
-const myPeer = new Peer(undefined); 
+const myPeer = new Peer(undefined);
+
 
 // Create localVideo elements
 const myVideo = document.createElement('video')
@@ -66,12 +67,13 @@ myPeer.on('open', userId => {
     socket.emit('join-room', ROOM_ID, userId)
 
     sessionStorage.setItem('myUserId', userId); // make userId available for next time you click join room
+    console.log("Set userId: " + userId);
 })
 
 document.getElementById('joinRoom').addEventListener('click', function() {
     const roomId = document.getElementById('roomName').value; // Get room name from input field
     const currentSessionUserId = sessionStorage.getItem('myUserId');
-
+    console.log("USER ID: " + currentSessionUserId);
     if (roomId) {
         // Leave the current room
         if (ROOM_ID) {
@@ -101,7 +103,7 @@ function connectToNewUser(userId, stream) {
     
     const call = myPeer.call(userId, stream);
     let isVideoAdded = false;
-    console.log("CONNECTING TO NEW USER");
+    console.log("Connecting to new user: " + userId);
     // Create remoteVideo
     const vidElements = createNewVideoElements();
     console.log(vidElements);
@@ -123,7 +125,6 @@ function connectToNewUser(userId, stream) {
     })
 
     peers[userId] = call
-    console.log(peers[userId]);
 }
 
 function addVideoStream(video, videoBox, stream, muteButton) {
@@ -133,19 +134,20 @@ function addVideoStream(video, videoBox, stream, muteButton) {
     })
     videoBox.append(video)
 
-    // If a muteButton was included, add it
+    // If a muteButton was included, add it - treat the video as a remote video
     if(muteButton) {
         muteButton.addEventListener('click', () => {
-            handleMuteButtonClick(muteButton, myVideo);
+            handleMuteButtonClick(muteButton, video);
         });
         videoBox.append(muteButton);
+        video.style.height = myVideo.style.height;
+        video.classList.add('remoteVideo');
     }
 
     videoGrid.append(videoBox)
 }
 
 function handleMuteButtonClick(button, video) {
-    console.log("TEST");
     if (video.muted) {
         video.muted = false;
         button.textContent = 'Mute';
@@ -160,19 +162,19 @@ function handleMuteButtonClick(button, video) {
 }
 
 function createNewVideoElements() {
-    const myVideo = document.createElement('video')
-    myVideo.class = 'box'
-    myVideo.muted = true
-    const myVideoBox = document.createElement('div')
-    myVideoBox.className = 'videoBox'
+    const myVid = document.createElement('video')
+    myVid.class = 'box'
+    myVid.muted = true
+    const myVidBox = document.createElement('div')
+    myVidBox.className = 'videoBox'
 
     const muteButton = document.createElement('button');
     muteButton.classList.add('btn', 'btn-success', 'muteButton');
     muteButton.innerText = 'Unmute'
 
     const returnObj = {
-        video: myVideo,
-        videoBox: myVideoBox,
+        video: myVid,
+        videoBox: myVidBox,
         muteButton: muteButton
     }
 

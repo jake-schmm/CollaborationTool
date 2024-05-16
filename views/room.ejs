@@ -40,21 +40,27 @@
     margin: 1%; /* Space between video boxes */
     box-sizing: border-box; /* Includes padding and border in the width */
     position: relative; /* For absolute positioning of buttons */
+    display: flex; 
+    flex-direction: column;
 }
 
 .videoContainer {
     display: flex;
     flex-wrap: wrap;
-    justify-content: space-around;
+    justify-content: center;
     align-items: flex-start; /* Align items at the start of the container */
+    width: 100%;
+    margin: 0 auto; /* Center the container itself */
 }
 video {
     background-color: white;
     border: 10px solid;
     padding: 15px;
+    width: 90%;
 }
 .muteButton {
     margin-top: 1%;
+    width: 110px;
 }
     #topInputs {
         margin-top: 2%;
@@ -85,10 +91,6 @@ video {
         z-index: -1; /* Places the background below the content */
     }
 
-    #localVideo, #remoteVideo, .remoteVideo {
-        background-color: white;
-    }
-
     #roomName {
         padding: .375rem .75rem;
         font-size: 1rem;
@@ -116,15 +118,7 @@ video {
                 <br/>
             </div>
         </div>
-        <div id="videoContainer" style="display: flex; flex-wrap: wrap; justify-content: space-around;">
-            <!-- <div class="videoBox">
-                <video class="box" id="localVideo" playsinline autoplay muted></video>
-            </div>
-             
-            <div class="videoBox">
-                <video id='remoteVideo' class="box remoteVideo" playsinline autoplay muted></video>
-                <button id='muteButton' class="muteButton btn btn-success">Unmute</button>
-            </div> -->
+        <div id="videoContainer" class='videoContainer'>
         </div>
     </div>
 <script>

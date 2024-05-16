@@ -4,6 +4,10 @@ const app = express();
 app.set('view engine', 'ejs');
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
+// const { PeerServer } = require('peer');
+// const peerServer = PeerServer({
+//   port: 3001,
+// });
 
 const nsp = io.of('/videoChat') // have a separate namespace for video chat socket
 
