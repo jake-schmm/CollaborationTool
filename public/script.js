@@ -41,10 +41,11 @@ navigator.mediaDevices.getUserMedia({
 })
 
     // Listen to other users connecting
-    socket.off('user-connected').on('user-connected', userId => {
+    socket.off('user-connected').on('user-connected', (userId, userCount) => {
         if (peers[userId]) peers[userId].close(); // Close existing call if it exists
         if (!peers[userId]) {
             connectToNewUser(userId, stream) // send current video stream to newly connected user
+            updateUserCount(userCount); // Update user count display
             console.log('User connected: ' + userId)
         }
     })
@@ -52,7 +53,7 @@ navigator.mediaDevices.getUserMedia({
 
 
 // user-disconnected comes from other users (it's an event I created in server.js), while disconnect happens when this user disconnects
-socket.on('user-disconnected', userId => {
+socket.on('user-disconnected', (userId, userCount) => {
     console.log('User ' + userId + ' diconnected');
     console.log("peers obj: " + peers[userId]);
 
@@ -60,7 +61,13 @@ socket.on('user-disconnected', userId => {
         peers[userId].close() // close the call for the user 
         peers[userId].off('stream'); 
         delete peers[userId]; // Clean up the peer object
+        updateUserCount(userCount); // Update user count display
     }
+})
+
+// Gets emitted when user leaves room
+socket.on('update-user-count', (userCount) => {
+    updateUserCount(userCount);
 })
 
 socket.on('disconnect', () => {
@@ -229,4 +236,8 @@ function showToastNotification(message, duration = 3000) {
     }, duration);
 }
 
+function updateUserCount(userCount) {
+    var userCountSpan = document.getElementById("userCount")
+    userCountSpan.innerHTML = userCount;
+}
 
