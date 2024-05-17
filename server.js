@@ -41,6 +41,7 @@ nsp.on('connection', function(socket) {
         if (socket.roomId && socket.userId) {
             roomUserCounts[socket.roomId]--;
             socket.to(socket.roomId).emit('user-disconnected', socket.userId, roomUserCounts[socket.roomId]);
+            socket.to(socket.roomId).emit('update-user-count', roomUserCounts[socket.roomId]);
             console.log(`${socket.userId} left room ${socket.roomId}, userCount: ${roomUserCounts[socket.roomId]}`);
         }
     })
@@ -50,6 +51,7 @@ nsp.on('connection', function(socket) {
         if (roomUserCounts[roomId]) {
             roomUserCounts[roomId]--;
             socket.to(roomId).emit('update-user-count', roomUserCounts[roomId]);
+            socket.to(roomId).emit('user-disconnected', userId, roomUserCounts[roomId]);
             console.log(`${userId} left room ${roomId}, userCount: ${roomUserCounts[roomId]}`);
         }
         //socket.to(roomId).emit('user-disconnected', userId);

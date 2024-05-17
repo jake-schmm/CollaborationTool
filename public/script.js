@@ -49,26 +49,25 @@ navigator.mediaDevices.getUserMedia({
             console.log('User connected: ' + userId)
         }
     })
+
+    // user-disconnected comes from other users (it's an event I created in server.js), while disconnect happens when this user disconnects
+    socket.off('user-disconnected').on('user-disconnected', (userId, userCount) => {
+        console.log('User ' + userId + ' diconnected');
+
+        if(peers[userId]) {
+            peers[userId].close() // close the call for the user 
+            delete peers[userId]; // Clean up the peer object
+            updateUserCount(userCount); // Update user count display
+        }
+    })
+
+    // Gets emitted when user leaves room
+    socket.on('update-user-count', (userCount) => {
+        updateUserCount(userCount);
+    })
 })
 
 
-// user-disconnected comes from other users (it's an event I created in server.js), while disconnect happens when this user disconnects
-socket.on('user-disconnected', (userId, userCount) => {
-    console.log('User ' + userId + ' diconnected');
-    console.log("peers obj: " + peers[userId]);
-
-    if(peers[userId]) {
-        peers[userId].close() // close the call for the user 
-        peers[userId].off('stream'); 
-        delete peers[userId]; // Clean up the peer object
-        updateUserCount(userCount); // Update user count display
-    }
-})
-
-// Gets emitted when user leaves room
-socket.on('update-user-count', (userCount) => {
-    updateUserCount(userCount);
-})
 
 socket.on('disconnect', () => {
     resetVideoGrid(); // clear video grid in case user ever reconnects
@@ -103,8 +102,8 @@ document.getElementById('joinRoom').addEventListener('click', function() {
 function disconnectOldPeers(userId) {
     Object.keys(peers).forEach(userId => {
         if (peers[userId]) {
-            peers[userId].off('stream'); 
             peers[userId].close(); // Close the peer connection
+            delete peers[userId]; // Clean up the peer object
         }
     });
 }
@@ -161,10 +160,10 @@ function addVideoStream(video, videoBox, stream, muteButton) {
 }
 
 function matchVideoHeightWithLocalVideo(video, videoBox) {
-    videoBox.style.width = `${myVideo.clientWidth}px`;
-    videoBox.style.height = `${myVideo.clientHeight}px`;
-    video.style.width = `${myVideo.clientWidth}px`;
-    video.style.height = `${myVideo.clientHeight}px`;
+    //videoBox.style.width = `${myVideo.clientWidth}px`;
+    //videoBox.style.height = `${myVideo.clientHeight}px`;
+    video.style.width = `${myVideoBox.clientWidth}px`;
+    video.style.height = `${myVideoBox.clientHeight}px`;
 }
 
 window.addEventListener('resize', () => {
