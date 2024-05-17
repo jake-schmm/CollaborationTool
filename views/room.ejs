@@ -130,31 +130,6 @@ function logMessage(message) {
 }
 
 
-// Event listener to call matchVideoHeight when video1 starts playing
-//localVideo.addEventListener('play', matchVideoHeight(remoteVideo, localVideo));
-// localVideo.addEventListener('play', () => {
-//     document.querySelectorAll('.remoteVideo').forEach(video => {
-//         matchVideoHeight(video, localVideo)
-//     });
-// });
-// // Event listener to call matchVideoHeight when video1 changes size (e.g., due to resizing the window)
-// window.addEventListener('resize', () => {
-//     document.querySelectorAll('.remoteVideo').forEach(video => {
-//         matchVideoHeight(video, localVideo)
-//     });
-// });
-
-// Function to set the height of video2 to match video1
-function matchVideoHeight(targetVideo, referenceVideo) {
-    if (referenceVideo.readyState >= 2) {  // Ensures metadata is loaded
-        targetVideo.style.height = `${referenceVideo.clientHeight}px`;
-    } else {
-        referenceVideo.addEventListener('loadedmetadata', () => {
-            targetVideo.style.height = `${referenceVideo.clientHeight}px`;
-        }, { once: true });
-    }
-}
-
         
 
         

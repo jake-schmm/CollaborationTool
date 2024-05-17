@@ -11,8 +11,7 @@ const io = require('socket.io')(http);
 
 const nsp = io.of('/videoChat') // have a separate namespace for video chat socket
 
-// This will be triggered when it redirects to index.html/randomUUID
-app.get('/index.html', (req, res) => {
+app.get('/', (req, res) => {
     res.render('room', { roomId: uuidv4()}) // render the 'room.ejs' and pass the page a server-side initial roomId variable that can be accessed client-side
 })
 

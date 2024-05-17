@@ -9,10 +9,15 @@ const myPeer = new Peer(undefined);
 
 // Create localVideo elements
 const myVideo = document.createElement('video')
-myVideo.class = 'box'
+myVideo.className = 'box'
+// These attributes are necessary for playing on mobile
 myVideo.muted = true
+myVideo.defaultMuted = true
+myVideo.playsInline = true
+myVideo.autoplay = true
 const myVideoBox = document.createElement('div')
 myVideoBox.className = 'videoBox'
+myVideoBox.id = 'localVideoBox'
 
 var peers = {} // Maps userIds to calls
 let localStream = null; // Global scope variable to hold the media stream
@@ -24,7 +29,6 @@ navigator.mediaDevices.getUserMedia({
 }).then(stream => {
     localStream = stream
     addVideoStream(myVideo, myVideoBox, stream, null) // exclude mute button from localVideo
-
 
     // Receive calls
     myPeer.on('call', call => {
@@ -118,6 +122,7 @@ function connectToNewUser(userId, stream) {
     call.on('close', () => {
         vidElements.muteButton.removeEventListener('click', handleMuteButtonClick(vidElements.muteButton, vidElements.video));
         vidElements.muteButton.remove();
+        vidElements.video.removeEventListener('loadedmetadata', matchVideoHeightWithLocalVideo(vidElements.video, vidElements.videoBox));
         vidElements.video.remove()
         vidElements.videoBox.remove()
         isVideoAdded = false; 
@@ -128,10 +133,7 @@ function connectToNewUser(userId, stream) {
 }
 
 function addVideoStream(video, videoBox, stream, muteButton) {
-    video.srcObject = stream;
-    video.addEventListener('loadedmetadata', () => {
-        video.play()
-    })
+    video.srcObject = stream;    
     videoBox.append(video)
 
     // If a muteButton was included, add it - treat the video as a remote video
@@ -140,12 +142,32 @@ function addVideoStream(video, videoBox, stream, muteButton) {
             handleMuteButtonClick(muteButton, video);
         });
         videoBox.append(muteButton);
-        video.style.height = myVideo.style.height;
+
+        // Remote video attributes
         video.classList.add('remoteVideo');
+        video.addEventListener('loadedmetadata', () => {
+            matchVideoHeightWithLocalVideo(video, videoBox);
+        });
     }
 
     videoGrid.append(videoBox)
 }
+
+function matchVideoHeightWithLocalVideo(video, videoBox) {
+    videoBox.style.width = `${myVideo.clientWidth}px`;
+    videoBox.style.height = `${myVideo.clientHeight}px`;
+    video.style.width = `${myVideo.clientWidth}px`;
+    video.style.height = `${myVideo.clientHeight}px`;
+}
+
+window.addEventListener('resize', () => {
+    const localVideoBox = document.getElementById('localVideoBox');
+    const localVideo = localVideoBox.firstElementChild;
+    
+    document.querySelectorAll('.videoBox:not(#localVideoBox)').forEach(videoBox => {
+        matchVideoHeightWithLocalVideo(videoBox.firstElementChild, videoBox); // firstElementChild is the video element of the videoBox
+    });
+});
 
 function handleMuteButtonClick(button, video) {
     if (video.muted) {
@@ -163,8 +185,11 @@ function handleMuteButtonClick(button, video) {
 
 function createNewVideoElements() {
     const myVid = document.createElement('video')
-    myVid.class = 'box'
+    myVid.className = 'box'
     myVid.muted = true
+    myVid.defaultMuted = true;
+    myVid.playsInline = true;
+    myVid.autoplay = true;
     const myVidBox = document.createElement('div')
     myVidBox.className = 'videoBox'
 
