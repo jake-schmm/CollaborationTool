@@ -4,8 +4,7 @@
     "type": "backend"
   },
   "backend": {
-    "platform": "node10"
+    "platform": "node17"
   },
-  "hash": "e779dae1",
-  "domain": "collaboration-tool.mdbgo.io"
+  "hash": "40d53816"
 }

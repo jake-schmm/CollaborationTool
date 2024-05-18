@@ -1,11 +1,37 @@
 const socket = io('/videoChat'); // connect to socket.io server
 const videoGrid = document.getElementById('videoContainer')
 
-// Peer.js - undefined parameter means a unique id is assigned to that Peer 
-// Having a unique id is important because I don't pass in host or key options
-// So that means it will use Peer Cloud Service which shares ids with everyone else using Peer.js without a key or host 
-const myPeer = new Peer(undefined);
 
+const MAX_RETRIES = 5; // Maximum number of retry attempts
+const RETRY_INTERVAL = 1000; // Interval between retries in milliseconds
+var myPeer = null;
+
+function createPeer(retries = 0) {
+    // Peer.js - undefined parameter means a unique id is assigned to that Peer 
+    // Having a unique id is important because I don't pass in host or key options
+    // So that means it will use Peer Cloud Service which shares ids with everyone else using Peer.js without a key or host 
+    myPeer = new Peer(undefined);
+
+    myPeer.on('open', (userId) => {
+        onPeerReady(); // executes after successful connection
+
+        socket.emit('join-room', ROOM_ID, userId)
+        sessionStorage.setItem('myUserId', userId); // make userId available for next time you click join room
+        console.log("Peer connected with ID:", userId);
+    });
+
+    myPeer.on('error', (err) => {
+        console.log(err);
+        if (retries < MAX_RETRIES) {
+            console.log('Retry ' + retries + ' for connection.');
+            setTimeout(() => createPeer(retries + 1), RETRY_INTERVAL);
+        } 
+    });
+}
+
+getMediaStream().then(() => {
+    createPeer(); // Initial call to createPeer
+});
 
 // Create localVideo elements
 const myVideo = document.createElement('video')
@@ -22,50 +48,58 @@ myVideoBox.id = 'localVideoBox'
 var peers = {} // Maps userIds to calls
 let localStream = null; // Global scope variable to hold the media stream
 
-// Create localVideo
-navigator.mediaDevices.getUserMedia({
-    video: true,
-    audio: true
-}).then(stream => {
-    localStream = stream
-    addVideoStream(myVideo, myVideoBox, stream, null) // exclude mute button from localVideo
+async function getMediaStream() {
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
+        });
+        addVideoStream(myVideo, myVideoBox, localStream, null); // exclude mute button from localVideo
+    } catch (error) {
+        console.error('Error accessing media devices:', error);
+    }
+}
 
-    // Receive calls
-    myPeer.on('call', call => {
-        call.answer(stream);
 
-        if(!peers[call.peer]) { // it's important that userIds are equivalent to the id that gets generated when peer is created with undefined parameter
-            connectToNewUser(call.peer, stream);
-        }
-    
-})
 
-    // Listen to other users connecting
-    socket.off('user-connected').on('user-connected', (userId, userCount) => {
-        if (peers[userId]) peers[userId].close(); // Close existing call if it exists
-        if (!peers[userId]) {
-            connectToNewUser(userId, stream) // send current video stream to newly connected user
-            updateUserCount(userCount); // Update user count display
-            console.log('User connected: ' + userId)
-        }
-    })
+function onPeerReady() {
+        // Receive calls
+        myPeer.on('call', call => {
+            call.answer(localStream);
 
-    // user-disconnected comes from other users (it's an event I created in server.js), while disconnect happens when this user disconnects
-    socket.off('user-disconnected').on('user-disconnected', (userId, userCount) => {
-        console.log('User ' + userId + ' diconnected');
+            if(!peers[call.peer]) { // it's important that userIds are equivalent to the id that gets generated when peer is created with undefined parameter
+                connectToNewUser(call.peer, localStream);
+            }
+        
+        })
 
-        if(peers[userId]) {
-            peers[userId].close() // close the call for the user 
-            delete peers[userId]; // Clean up the peer object
-            updateUserCount(userCount); // Update user count display
-        }
-    })
+        // Listen to other users connecting
+        socket.off('user-connected').on('user-connected', (userId, userCount) => {
+            if (peers[userId]) peers[userId].close(); // Close existing call if it exists
+            if (!peers[userId]) {
+                connectToNewUser(userId, localStream) // send current video stream to newly connected user
+                updateUserCount(userCount); // Update user count display
+                console.log('User connected: ' + userId)
+            }
+        })
 
-    // Gets emitted when user leaves room
-    socket.on('update-user-count', (userCount) => {
-        updateUserCount(userCount);
-    })
-})
+        // user-disconnected comes from other users (it's an event I created in server.js), while disconnect happens when this user disconnects
+        socket.off('user-disconnected').on('user-disconnected', (userId, userCount) => {
+            console.log('User ' + userId + ' diconnected');
+
+            if(peers[userId]) {
+                peers[userId].close() // close the call for the user 
+                delete peers[userId]; // Clean up the peer object
+                updateUserCount(userCount); // Update user count display
+            }
+        })
+
+        // Gets emitted when user leaves room
+        socket.on('update-user-count', (userCount) => {
+            updateUserCount(userCount);
+        })
+}
+
 
 
 
@@ -73,12 +107,7 @@ socket.on('disconnect', () => {
     resetVideoGrid(); // clear video grid in case user ever reconnects
 });
 
-myPeer.on('open', userId => {
-    socket.emit('join-room', ROOM_ID, userId)
 
-    sessionStorage.setItem('myUserId', userId); // make userId available for next time you click join room
-    console.log("Set userId: " + userId);
-})
 
 document.getElementById('joinRoom').addEventListener('click', function() {
     const roomId = document.getElementById('roomName').value; // Get room name from input field
