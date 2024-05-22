@@ -6,6 +6,23 @@ app.set('view engine', 'ejs');
 const http = require('http').Server(app);
 const io = require('socket.io')(http);
 
+// Security headers
+const helmet = require('helmet');
+app.use(helmet.contentSecurityPolicy({
+    directives: {
+      defaultSrc: ["'self'"],
+      imgSrc: ["'self'", "https://res.cloudinary.com/dam11m9bq/image/upload/v1716332029/mqi1az5h_u8ulqu.png"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://cdnjs.cloudflare.com"],
+      connectSrc: ["'self'", "https://0.peerjs.com", "wss://0.peerjs.com", "https://unpkg.com", "https://cdnjs.cloudflare.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"]
+    }
+  }));
+app.use(helmet.hsts({ maxAge: 31536000, includeSubDomains: true, preload: true }));
+app.use(helmet.noSniff());
+app.use(helmet.frameguard({ action: 'deny' }));
+app.use(helmet.xssFilter());
+app.use(helmet.referrerPolicy({ policy: 'no-referrer' }));
+
 const nsp = io.of('/videoChat') // have a separate namespace for video chat socket
 const roomUserCounts = {}; // Object to keep track of user counts for each room
 
@@ -15,6 +32,7 @@ app.get('/', (req, res) => {
 
 // Serve static files from the 'public' directory
 app.use(express.static('public')); // this must be placed after routing code. Put imgs in public folder so that room.ejs can find it
+
 
 
 // Server-side logic to handle joining rooms and relaying offers/answers
